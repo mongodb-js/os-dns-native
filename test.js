@@ -61,7 +61,7 @@ describe('lookup', function() {
         it('provides an error with resolve()', (done) => {
           osDns.resolve('nonexistent.nx', type, (err) => {
             if (!err) {
-              done(new Error('missed exception'));
+              return done(new Error('missed exception'));
             }
             done();
           });
@@ -70,7 +70,7 @@ describe('lookup', function() {
         it('provides an error with resolve<X>()', (done) => {
           osDns[method]('nonexistent.nx', (err) => {
             if (!err) {
-              done(new Error('missed exception'));
+              return done(new Error('missed exception'));
             }
             done();
           });

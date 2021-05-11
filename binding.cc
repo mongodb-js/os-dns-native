@@ -359,7 +359,7 @@ std::string ResourceRecord::asAAAA() const {
         std::to_string(record_->wType));
   }
 
-  const char* data = reinterpret_cast<const char*>(&record_->Data.AAAA.Ip6Address);
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(&record_->Data.AAAA.Ip6Address);
   char ipv6[60];
   snprintf(ipv6, sizeof(ipv6), "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
     data[0], data[1], data[2], data[3],
@@ -416,7 +416,7 @@ DNSResponse DNSController::Lookup(
       reinterpret_cast<PDNS_RECORD*>(&results),
       nullptr);
 
-  if (status = 0) {
+  if (status != 0) {
     throw std::system_error(
         status,
         std::system_category(),
