@@ -499,7 +499,7 @@ void Lookup(const CallbackInfo& args) {
 
 } // anonymous namespace
 
-static Object Init(Env env, Object exports) {
+static Object InitOSDnsNative(Env env, Object exports) {
   exports["lookup"] = Function::New(env, Lookup);
   Object constants = Object::New(env);
   constants["INTERNET"] = Number::New(env, static_cast<int>(QueryClass::INTERNET));
@@ -512,4 +512,4 @@ static Object Init(Env env, Object exports) {
   return exports;
 }
 
-NODE_API_MODULE(os_dns_native, Init)
+NODE_API_MODULE(os_dns_native, InitOSDnsNative)
