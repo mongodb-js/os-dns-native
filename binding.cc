@@ -46,9 +46,9 @@ class ResourceRecord {
   size_t pos_ = 0;
 };
 
-class DNSReponse {
+class DNSResponse {
  public:
-  DNSReponse(const std::string& search, std::vector<uint8_t>&& raw_data);
+  DNSResponse(const std::string& search, std::vector<uint8_t>&& raw_data);
   std::vector<ResourceRecord>& records() { return records_; }
   const std::vector<ResourceRecord>& records() const { return records_; }
 
@@ -63,7 +63,7 @@ class DNSController {
   DNSController();
   ~DNSController();
 
-  DNSReponse Lookup(
+  DNSResponse Lookup(
       const std::string& name,
       QueryClass cls,
       QueryType type);
@@ -84,22 +84,6 @@ ResourceRecord::ResourceRecord(ns_msg* msg, size_t pos)
         std::string("Invalid record ") + std::to_string(pos) +
         " of DNS answer: " + strerror(errno));
   }
-}
-
-std::string ResourceRecord::read(QueryType type) const {
-  switch (type) {
-    case QueryType::A:
-      return asA();
-    case QueryType::AAAA:
-      return asAAAA();
-    case QueryType::SRV:
-      return asSRV();
-    case QueryType::TXT:
-      return asTXT();
-    case QueryType::CNAME:
-      return asCNAME();
-  }
-  return "";
 }
 
 std::string ResourceRecord::asTXT() const {
@@ -196,7 +180,7 @@ std::pair<const uint8_t*, size_t> ResourceRecord::rawData() const {
   return { ns_rr_rdata(record_), ns_rr_rdlen(record_) };
 }
 
-DNSReponse::DNSReponse(const std::string& search, std::vector<uint8_t>&& raw_data)
+DNSResponse::DNSResponse(const std::string& search, std::vector<uint8_t>&& raw_data)
   : raw_data_(std::move(raw_data)) {
   if (ns_initparse(&raw_data_[0], raw_data_.size(), &answer_) != 0) {
     throw std::runtime_error(std::string("Invalid DNS answer for \"") + search + "\"");
@@ -223,7 +207,7 @@ DNSController::~DNSController() {
   res_nclose(&state_);
 }
 
-DNSReponse DNSController::Lookup(
+DNSResponse DNSController::Lookup(
     const std::string& name,
     QueryClass cls,
     QueryType type) {
@@ -242,9 +226,201 @@ DNSReponse DNSController::Lookup(
   }
   answer.resize(result);
   answer.shrink_to_fit();
-  return DNSReponse(name, std::move(answer));
+  return DNSResponse(name, std::move(answer));
+}
+#else
+#include <windows.h>
+#include <windns.h>
+
+namespace {
+
+enum class QueryClass {
+  IN
+};
+
+enum class QueryType {
+  A = DNS_TYPE_A,
+  AAAA = DNS_TYPE_AAAA,
+  SRV = DNS_TYPE_SRV,
+  TXT = DNS_TYPE_TEXT,
+  CNAME = DNS_TYPE_CNAME
+};
+
+void FreeDnsRecordList(PDNS_RECORDA record) {
+  DnsRecordListFree(record, DnsFreeRecordList);
+}
+
+class ResourceRecord {
+ public:
+  ResourceRecord(PDNS_RECORDA record);
+
+  std::string read(QueryType type) const;
+
+  ResourceRecord(ResourceRecord&&) = default;
+  ResourceRecord& operator=(ResourceRecord&&) = default;
+
+ private:
+  ResourceRecord(const ResourceRecord&) = delete;
+  ResourceRecord& operator=(const ResourceRecord&) = delete;
+
+  std::string asTXT() const;
+  std::string asA() const;
+  std::string asAAAA() const;
+  std::string asCNAME() const;
+  std::string asSRV() const;
+
+  PDNS_RECORDA record_;
+};
+
+class DNSResponse {
+ public:
+  DNSResponse(const std::string& search, PDNS_RECORDA results);
+  std::vector<ResourceRecord>& records() { return records_; }
+  const std::vector<ResourceRecord>& records() const { return records_; }
+
+ private:
+  std::shared_ptr<DNS_RECORDA> results_;
+  std::vector<ResourceRecord> records_;
+};
+
+class DNSController {
+ public:
+  DNSController() = default;
+  ~DNSController() = default;
+
+  DNSResponse Lookup(
+      const std::string& name,
+      QueryClass cls,
+      QueryType type);
+
+ private:
+  DNSController(const DNSController&) = delete;
+  DNSController& operator=(const DNSController&) = delete;
+};
+
+ResourceRecord::ResourceRecord(PDNS_RECORDA record)
+  : record_(record) {
+}
+
+std::string ResourceRecord::asTXT() const {
+  if (record_->wType != DNS_TYPE_TEXT) {
+    throw std::runtime_error("Expected DNS TXT record, received " + 
+        std::to_string(record_->wType));
+  }
+  std::string ret;
+  for (DWORD i = 0; i < record_->Data.TXT.dwStringCount; i++) {
+    if (i > 0) ret += '\0';
+    ret += record_->Data.TXT.pStringArray[i];
+  }
+  return ret;
+}
+
+std::string ResourceRecord::asA() const {
+  if (record_->wType != DNS_TYPE_A) {
+    throw std::runtime_error("Expected DNS A record, received " + 
+        std::to_string(record_->wType));
+  }
+
+  uint32_t addr = record_->Data.A.IpAddress;
+  std::string rv;
+  rv += addr & 0xFF;
+  rv += '.';
+  rv += (addr >> 8) & 0xFF;
+  rv += '.';
+  rv += (addr >> 16) & 0xFF;
+  rv += '.';
+  rv += (addr >> 24) & 0xFF;
+  return rv;
+}
+
+std::string ResourceRecord::asAAAA() const {
+  if (record_->wType != DNS_TYPE_A) {
+    throw std::runtime_error("Expected DNS AAAA record, received " + 
+        std::to_string(record_->wType));
+  }
+
+  const char* data = reinterpret_cast<const char*>(&record_->Data.AAAA.Ip6Address);
+  char ipv6[60];
+  snprintf(ipv6, sizeof(ipv6), "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+    data[0], data[1], data[2], data[3],
+    data[4], data[5], data[6], data[7],
+    data[8], data[9], data[10], data[11],
+    data[12], data[13], data[14], data[15]);
+  return ipv6;
+}
+
+std::string ResourceRecord::asCNAME() const {
+  if (record_->wType != DNS_TYPE_CNAME) {
+    throw std::runtime_error("Expected DNS CNAME record, received " + 
+        std::to_string(record_->wType));
+  }
+  return record_->Data.CNAME.pNameHost;
+}
+
+std::string ResourceRecord::asSRV() const {
+  if (record_->wType != DNS_TYPE_SRV) {
+    throw std::runtime_error("Expected DNS SRV record, received " + 
+        std::to_string(record_->wType));
+  }
+  const auto& srv = record_->Data.SRV;
+
+  std::string name = srv.pNameTarget;
+  name += ':';
+  name += std::to_string(srv.wPort);
+  name += ",prio=";
+  name += std::to_string(srv.wPriority);
+  name += ",weight=";
+  name += std::to_string(srv.wWeight);
+
+  return name;
+}
+
+DNSResponse::DNSResponse(const std::string& search, PDNS_RECORDA results)
+  : results_(results, FreeDnsRecordList) {
+  
+  for (PDNS_RECORDA cur = results; cur != nullptr; cur = cur->pNext) {
+    records_.emplace_back(cur);
+  }
+}
+
+DNSResponse DNSController::Lookup(
+    const std::string& name,
+    QueryClass cls,
+    QueryType type) {
+  PDNS_RECORDA results;
+  DNS_STATUS status = DnsQuery_UTF8(
+      name.c_str(),
+      static_cast<WORD>(type),
+      DNS_QUERY_STANDARD,
+      nullptr,
+      reinterpret_cast<PDNS_RECORD*>(&results),
+      nullptr);
+
+  if (status = 0) {
+    throw new std::system_error(
+        status, 
+        std::system_category(),
+        std::string("DNS Query for \"") + name + "\" failed");
+  }
+  return DNSResponse(name, results);
 }
 #endif
+
+std::string ResourceRecord::read(QueryType type) const {
+  switch (type) {
+    case QueryType::A:
+      return asA();
+    case QueryType::AAAA:
+      return asAAAA();
+    case QueryType::SRV:
+      return asSRV();
+    case QueryType::TXT:
+      return asTXT();
+    case QueryType::CNAME:
+      return asCNAME();
+  }
+  return "";
+}
 
 using namespace Napi;
 
@@ -273,7 +449,7 @@ class DNSWorker : public AsyncWorker {
 
 void DNSWorker::Execute() {
   DNSController controller;
-  DNSReponse response = controller.Lookup(name_, cls_, type_);
+  DNSResponse response = controller.Lookup(name_, cls_, type_);
   for (const ResourceRecord& record: response.records()) {
     result_.emplace_back(record.read(type_));
   }

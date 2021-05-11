@@ -14,8 +14,16 @@
     'msvs_settings': {
       'VCCLCompilerTool': { 'ExceptionHandling': 1 },
     },
-    "link_settings": {
-      "libraries": ["-lresolv"]
-    }
+    'conditions': [
+      ['OS=="win"',  {
+        "link_settings": {
+          "libraries": ["-ldnsapi"]
+        }
+      }, {
+        "link_settings": {
+          "libraries": ["-lresolv"]
+        }
+      }]
+    ]
   }]
 }
