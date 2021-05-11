@@ -64,19 +64,19 @@ function withFallback(fn, nodeFn) {
 };
 
 const withNodeFallback = {
-  resolve: withFallback(resolve),
-  resolve4: withFallback(resolve4),
-  resolve6: withFallback(resolve6),
-  resolveCname: withFallback(resolveCname),
-  resolveSrv: withFallback(resolveSrv),
-  resolveTxt: withFallback(resolveTxt),
+  resolve: withFallback(resolve, nodeDns.resolve),
+  resolve4: withFallback(resolve4, nodeDns.resolve4),
+  resolve6: withFallback(resolve6, nodeDns.resolve6),
+  resolveCname: withFallback(resolveCname, nodeDns.resolveCname),
+  resolveSrv: withFallback(resolveSrv, nodeDns.resolveSrv),
+  resolveTxt: withFallback(resolveTxt, nodeDns.resolveTxt),
   promises: {
-    resolve: promisify(withFallback(resolve)),
-    resolve4: promisify(withFallback(resolve4)),
-    resolve6: promisify(withFallback(resolve6)),
-    resolveCname: promisify(withFallback(resolveCname)),
-    resolveSrv: promisify(withFallback(resolveSrv)),
-    resolveTxt: promisify(withFallback(resolveTxt)),
+    resolve: promisify(withFallback(resolve, nodeDns.resolve)),
+    resolve4: promisify(withFallback(resolve4, nodeDns.resolve4)),
+    resolve6: promisify(withFallback(resolve6, nodeDns.resolve6)),
+    resolveCname: promisify(withFallback(resolveCname, nodeDns.resolveCname)),
+    resolveSrv: promisify(withFallback(resolveSrv, nodeDns.resolveSrv)),
+    resolveTxt: promisify(withFallback(resolveTxt, nodeDns.resolveTxt)),
   }
 };
 
