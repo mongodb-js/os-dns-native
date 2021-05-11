@@ -343,18 +343,18 @@ std::string ResourceRecord::asA() const {
 
   uint32_t addr = record_->Data.A.IpAddress;
   std::string rv;
-  rv += addr & 0xFF;
+  rv += std::to_string(addr & 0xFF);
   rv += '.';
-  rv += (addr >> 8) & 0xFF;
+  rv += std::to_string((addr >> 8) & 0xFF);
   rv += '.';
-  rv += (addr >> 16) & 0xFF;
+  rv += std::to_string((addr >> 16) & 0xFF);
   rv += '.';
-  rv += (addr >> 24) & 0xFF;
+  rv += std::to_string((addr >> 24) & 0xFF);
   return rv;
 }
 
 std::string ResourceRecord::asAAAA() const {
-  if (record_->wType != DNS_TYPE_A) {
+  if (record_->wType != DNS_TYPE_AAAA) {
     throw std::runtime_error("Expected DNS AAAA record, received " +
         std::to_string(record_->wType));
   }
@@ -417,7 +417,7 @@ DNSResponse DNSController::Lookup(
       nullptr);
 
   if (status = 0) {
-    throw new std::system_error(
+    throw std::system_error(
         status,
         std::system_category(),
         std::string("DNS Query for \"") + name + "\" failed");
