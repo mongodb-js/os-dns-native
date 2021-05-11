@@ -11,7 +11,7 @@ function resolve(hostname, rrtype, callback) {
     case 'CNAME':
     case 'TXT':
     case 'SRV':
-      lookup(hostname, constants.IN, constants[rrtype], function(err, results) {
+      lookup(hostname, constants.INTERNET, constants[rrtype], function(err, results) {
         if (err) return callback(err);
         switch (rrtype) {
           case 'A':

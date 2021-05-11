@@ -9,7 +9,7 @@
 namespace {
 
 enum class QueryClass {
-  IN = ns_c_in
+  INTERNET = ns_c_in
 };
 
 enum class QueryType {
@@ -255,7 +255,7 @@ DNSResponse DNSController::Lookup(
 namespace {
 
 enum class QueryClass {
-  IN
+  INTERNET
 };
 
 enum class QueryType {
@@ -502,7 +502,7 @@ void Lookup(const CallbackInfo& args) {
 static Object Init(Env env, Object exports) {
   exports["lookup"] = Function::New(env, Lookup);
   Object constants = Object::New(env);
-  constants["IN"] = Number::New(env, static_cast<int>(QueryClass::IN));
+  constants["INTERNET"] = Number::New(env, static_cast<int>(QueryClass::INTERNET));
   constants["A"] = Number::New(env, static_cast<int>(QueryType::A));
   constants["AAAA"] = Number::New(env, static_cast<int>(QueryType::AAAA));
   constants["SRV"] = Number::New(env, static_cast<int>(QueryType::SRV));
