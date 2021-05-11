@@ -127,7 +127,27 @@ std::string ResourceRecord::asAAAA() const {
 }
 
 std::string ResourceRecord::asCNAME() const {
-  return asTXT(); // Same parser.
+  const uint8_t* data;
+  size_t len;
+  std::tie(data, len) = rawData();
+  if (len == 0 || data[0] > len - 1) {
+    throw std::runtime_error("Invalid DNS CNAME record received");
+  }
+  std::string name(8192, '@');
+
+  const int size = dn_expand(start_,
+                             end_,
+                             data,
+                             &name[0],
+                             name.size());
+
+  if (size < 1) {
+    throw std::runtime_error(std::string("Incorrect result ") +
+      std::to_string(pos_) + " of CNAME answer: Invalid hostname format");
+  }
+
+  name.resize(name.find('\0'));
+  return name;
 }
 
 std::string ResourceRecord::asSRV() const {
@@ -304,7 +324,7 @@ ResourceRecord::ResourceRecord(PDNS_RECORDA record)
 
 std::string ResourceRecord::asTXT() const {
   if (record_->wType != DNS_TYPE_TEXT) {
-    throw std::runtime_error("Expected DNS TXT record, received " + 
+    throw std::runtime_error("Expected DNS TXT record, received " +
         std::to_string(record_->wType));
   }
   std::string ret;
@@ -317,7 +337,7 @@ std::string ResourceRecord::asTXT() const {
 
 std::string ResourceRecord::asA() const {
   if (record_->wType != DNS_TYPE_A) {
-    throw std::runtime_error("Expected DNS A record, received " + 
+    throw std::runtime_error("Expected DNS A record, received " +
         std::to_string(record_->wType));
   }
 
@@ -335,7 +355,7 @@ std::string ResourceRecord::asA() const {
 
 std::string ResourceRecord::asAAAA() const {
   if (record_->wType != DNS_TYPE_A) {
-    throw std::runtime_error("Expected DNS AAAA record, received " + 
+    throw std::runtime_error("Expected DNS AAAA record, received " +
         std::to_string(record_->wType));
   }
 
@@ -351,7 +371,7 @@ std::string ResourceRecord::asAAAA() const {
 
 std::string ResourceRecord::asCNAME() const {
   if (record_->wType != DNS_TYPE_CNAME) {
-    throw std::runtime_error("Expected DNS CNAME record, received " + 
+    throw std::runtime_error("Expected DNS CNAME record, received " +
         std::to_string(record_->wType));
   }
   return record_->Data.CNAME.pNameHost;
@@ -359,7 +379,7 @@ std::string ResourceRecord::asCNAME() const {
 
 std::string ResourceRecord::asSRV() const {
   if (record_->wType != DNS_TYPE_SRV) {
-    throw std::runtime_error("Expected DNS SRV record, received " + 
+    throw std::runtime_error("Expected DNS SRV record, received " +
         std::to_string(record_->wType));
   }
   const auto& srv = record_->Data.SRV;
@@ -377,7 +397,7 @@ std::string ResourceRecord::asSRV() const {
 
 DNSResponse::DNSResponse(const std::string& search, PDNS_RECORDA results)
   : results_(results, FreeDnsRecordList) {
-  
+
   for (PDNS_RECORDA cur = results; cur != nullptr; cur = cur->pNext) {
     records_.emplace_back(cur);
   }
@@ -398,7 +418,7 @@ DNSResponse DNSController::Lookup(
 
   if (status = 0) {
     throw new std::system_error(
-        status, 
+        status,
         std::system_category(),
         std::string("DNS Query for \"") + name + "\" failed");
   }
@@ -481,6 +501,14 @@ void Lookup(const CallbackInfo& args) {
 
 static Object Init(Env env, Object exports) {
   exports["lookup"] = Function::New(env, Lookup);
+  Object constants = Object::New(env);
+  constants["IN"] = Number::New(env, static_cast<int>(QueryClass::IN));
+  constants["A"] = Number::New(env, static_cast<int>(QueryType::A));
+  constants["AAAA"] = Number::New(env, static_cast<int>(QueryType::AAAA));
+  constants["SRV"] = Number::New(env, static_cast<int>(QueryType::SRV));
+  constants["TXT"] = Number::New(env, static_cast<int>(QueryType::TXT));
+  constants["CNAME"] = Number::New(env, static_cast<int>(QueryType::CNAME));
+  exports["constants"] = constants;
   return exports;
 }
 
