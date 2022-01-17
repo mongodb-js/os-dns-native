@@ -18,8 +18,11 @@ describe('lookup', function() {
       for (const { type, method, hostname } of queries) {
         context(`for a ${type} query`, () => {
           it('looks up with resolve() and matches Node.js', (done) => {
-            osDns.resolve(hostname, type, ((err, osResults) => {
+            useOsDns.resolve(hostname, type, ((err, osResults) => {
               if (err) { return done(err); }
+              if (useOsDns === osDns.withNodeFallback) {
+                assert.strictEqual(osDns.wasNativelyLookedUp(osResults), true);
+              }
               nodeDns.resolve(hostname, type, ((err, nodeResults) => {
                 if (err) { return done(err); }
                 assert.deepStrictEqual(new Set(osResults), new Set(nodeResults));
@@ -29,8 +32,11 @@ describe('lookup', function() {
           });
 
           it('looks up with resolve<X>() and matches Node.js', (done) => {
-            osDns[method](hostname, ((err, osResults) => {
+            useOsDns[method](hostname, ((err, osResults) => {
               if (err) { return done(err); }
+              if (useOsDns === osDns.withNodeFallback) {
+                assert.strictEqual(osDns.wasNativelyLookedUp(osResults), true);
+              }
               nodeDns[method](hostname, ((err, nodeResults) => {
                 if (err) { return done(err); }
                 assert.deepStrictEqual(new Set(osResults), new Set(nodeResults));
@@ -41,17 +47,23 @@ describe('lookup', function() {
 
           it('looks up with promises.resolve() and matches Node.js', async() => {
             const [ osResults, nodeResults ] = await Promise.all([
-              osDns.promises.resolve(hostname, type),
+              useOsDns.promises.resolve(hostname, type),
               nodeDns.promises.resolve(hostname, type),
             ]);
+            if (useOsDns === osDns.withNodeFallback) {
+              assert.strictEqual(osDns.wasNativelyLookedUp(osResults), true);
+            }
             assert.deepStrictEqual(new Set(osResults), new Set(nodeResults));
           });
 
           it('looks up with promises.resolve<X>() and matches Node.js', async() => {
             const [ osResults, nodeResults ] = await Promise.all([
-              osDns.promises[method](hostname),
+              useOsDns.promises[method](hostname),
               nodeDns.promises[method](hostname),
             ]);
+            if (useOsDns === osDns.withNodeFallback) {
+              assert.strictEqual(osDns.wasNativelyLookedUp(osResults), true);
+            }
             assert.deepStrictEqual(new Set(osResults), new Set(nodeResults));
           });
         });
@@ -59,7 +71,7 @@ describe('lookup', function() {
 
       for (const { type, method } of queries) {
         it('provides an error with resolve()', (done) => {
-          osDns.resolve('nonexistent.nx', type, (err) => {
+          useOsDns.resolve('nonexistent.nx', type, (err) => {
             if (!err) {
               return done(new Error('missed exception'));
             }
@@ -68,7 +80,7 @@ describe('lookup', function() {
         });
 
         it('provides an error with resolve<X>()', (done) => {
-          osDns[method]('nonexistent.nx', (err) => {
+          useOsDns[method]('nonexistent.nx', (err) => {
             if (!err) {
               return done(new Error('missed exception'));
             }
