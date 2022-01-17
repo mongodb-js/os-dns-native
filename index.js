@@ -50,6 +50,8 @@ const promises = {
   resolveTxt: promisify(resolveTxt),
 };
 
+const kWasNativelyLookedUp = Symbol('os-dns-native.kWasNativelyLookedUp');
+
 function withFallback(fn, nodeFn) {
   return function(...args) {
     const cb = args.pop();
@@ -57,11 +59,16 @@ function withFallback(fn, nodeFn) {
       if (err) {
         nodeFn(...args, cb);
       } else {
+        result[kWasNativelyLookedUp] = true;
         cb(null, result);
       }
     });
   }
 };
+
+function wasNativelyLookedUp(result) {
+  return !!(result && typeof result === 'object' && result[kWasNativelyLookedUp]);
+}
 
 const withNodeFallback = {
   resolve: withFallback(resolve, nodeDns.resolve),
@@ -88,5 +95,6 @@ module.exports = {
   resolveSrv,
   resolveTxt,
   promises,
-  withNodeFallback
+  withNodeFallback,
+  wasNativelyLookedUp
 };
