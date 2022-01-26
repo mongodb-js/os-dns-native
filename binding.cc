@@ -40,6 +40,7 @@ class ResourceRecord {
   std::string asCNAME() const;
   std::string asSRV() const;
   std::pair<const uint8_t*, size_t> rawData() const;
+  void assertType(QueryType expected) const;
 
   ns_rr record_;
   const uint8_t* start_ = nullptr;
@@ -88,6 +89,7 @@ ResourceRecord::ResourceRecord(ns_msg* msg, size_t pos)
 }
 
 std::string ResourceRecord::asTXT() const {
+  assertType(QueryType::TXT);
   const uint8_t* data;
   size_t len;
   std::tie(data, len) = rawData();
@@ -98,6 +100,7 @@ std::string ResourceRecord::asTXT() const {
 }
 
 std::string ResourceRecord::asA() const {
+  assertType(QueryType::A);
   const uint8_t* data;
   size_t len;
   std::tie(data, len) = rawData();
@@ -111,6 +114,7 @@ std::string ResourceRecord::asA() const {
 }
 
 std::string ResourceRecord::asAAAA() const {
+  assertType(QueryType::AAAA);
   const uint8_t* data;
   size_t len;
   std::tie(data, len) = rawData();
@@ -128,6 +132,7 @@ std::string ResourceRecord::asAAAA() const {
 }
 
 std::string ResourceRecord::asCNAME() const {
+  assertType(QueryType::CNAME);
   const uint8_t* data;
   size_t len;
   std::tie(data, len) = rawData();
@@ -152,6 +157,7 @@ std::string ResourceRecord::asCNAME() const {
 }
 
 std::string ResourceRecord::asSRV() const {
+  assertType(QueryType::SRV);
   struct SrvHeader {
     uint16_t priority;
     uint16_t weight;
@@ -293,6 +299,7 @@ class ResourceRecord {
   std::string asAAAA() const;
   std::string asCNAME() const;
   std::string asSRV() const;
+  void assertType(QueryType expected) const;
 
   PDNS_RECORDA record_;
 };
@@ -328,10 +335,7 @@ ResourceRecord::ResourceRecord(PDNS_RECORDA record)
 }
 
 std::string ResourceRecord::asTXT() const {
-  if (record_->wType != DNS_TYPE_TEXT) {
-    throw std::runtime_error("Expected DNS TXT record, received " +
-        std::to_string(record_->wType));
-  }
+  assertType(QueryType::TXT);
   std::string ret;
   for (DWORD i = 0; i < record_->Data.TXT.dwStringCount; i++) {
     if (i > 0) ret += '\0';
@@ -341,6 +345,7 @@ std::string ResourceRecord::asTXT() const {
 }
 
 std::string ResourceRecord::asA() const {
+  assertType(QueryType::A);
   uint32_t addr = record_->Data.A.IpAddress;
   std::string rv;
   rv += std::to_string(addr & 0xFF);
@@ -354,6 +359,7 @@ std::string ResourceRecord::asA() const {
 }
 
 std::string ResourceRecord::asAAAA() const {
+  assertType(QueryType::AAAA);
   const uint8_t* data = reinterpret_cast<const uint8_t*>(&record_->Data.AAAA.Ip6Address);
   char ipv6[60];
   snprintf(ipv6, sizeof(ipv6), "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
@@ -365,10 +371,12 @@ std::string ResourceRecord::asAAAA() const {
 }
 
 std::string ResourceRecord::asCNAME() const {
+  assertType(QueryType::CNAME);
   return record_->Data.CNAME.pNameHost;
 }
 
 std::string ResourceRecord::asSRV() const {
+  assertType(QueryType::SRV);
   const auto& srv = record_->Data.SRV;
 
   std::string name = srv.pNameTarget;
@@ -431,6 +439,16 @@ std::string ResourceRecord::read() const {
       return asCNAME();
   }
   return "";
+}
+
+void ResourceRecord::assertType(QueryType expected) const {
+  if (expected != type()) {
+    throw std::runtime_error(
+        std::string("Tried to read response of type ") +
+        std::to_string(static_cast<int>(type())) +
+        " as type " +
+        std::to_string(static_cast<int>(expected)));
+  }
 }
 
 using namespace Napi;
