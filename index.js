@@ -3,36 +3,48 @@ const { lookup, constants } = require('bindings')('os_dns_native');
 const { promisify } = require('util');
 const ipv6normalize = require('ipv6-normalize');
 const nodeDns = require('dns');
+const debug = require('debug')('os-dns-native');
+
+const rrtypes = ['A', 'AAAA', 'CNAME', 'TXT', 'SRV'];
+const rrtypeEnumToString = Object.fromEntries(rrtypes.map(t => [constants[t], t]));
 
 function resolve(hostname, rrtype, callback) {
-  switch (rrtype) {
-    case 'A':
-    case 'AAAA':
-    case 'CNAME':
-    case 'TXT':
-    case 'SRV':
-      lookup(hostname, constants.INTERNET, constants[rrtype], function(err, results) {
-        if (err) return callback(err);
-        switch (rrtype) {
-          case 'A':
-          case 'CNAME':
-            return callback(null, results);
-          case 'AAAA':
-            return callback(null, results.map(addr => ipv6normalize(addr)));
-          case 'TXT':
-            return callback(null, results.map(val => val.split('\0')));
-          case 'SRV':
-            return callback(null, results.map(res => {
-              const { name, port, priority, weight } = res.match(
-                /^(?<name>.+):(?<port>\d+),prio=(?<priority>\d+),weight=(?<weight>\d+)$/).groups;
-              return { name, port: +port, priority: +priority, weight: +weight };
-            }));
-        }
-      });
-      return;
-    default:
-      throw new Error(`Unknown rrtype: ${rrtype}`);
+  if (!rrtypes.includes(rrtype)) {
+    throw new Error(`Unknown rrtype: ${rrtype}`);
   }
+
+  lookup(hostname, constants.INTERNET, constants[rrtype], function(err, rawResults) {
+    if (err) {
+      debug(`failed ${rrtype} DNS resolution`, { hostname, err });
+      return callback(err);
+    }
+    debug(`received ${rrtype} DNS resolution`, { hostname, rawResults });
+
+    const results = [];
+    for (const { type, value } of rawResults) {
+      if (type !== constants[rrtype]) {
+        debug(`skipping mismatched DNS answer: wanted ${rrtype} but got ${rrtypeEnumToString[type]}`, { hostname });
+      } else {
+        results.push(value);
+      }
+    }
+
+    switch (rrtype) {
+      case 'A':
+      case 'CNAME':
+        return callback(null, results);
+      case 'AAAA':
+        return callback(null, results.map(addr => ipv6normalize(addr)));
+      case 'TXT':
+        return callback(null, results.map(val => val.split('\0')));
+      case 'SRV':
+        return callback(null, results.map(res => {
+          const { name, port, priority, weight } = res.match(
+            /^(?<name>.+):(?<port>\d+),prio=(?<priority>\d+),weight=(?<weight>\d+)$/).groups;
+          return { name, port: +port, priority: +priority, weight: +weight };
+        }));
+    }
+  });
 }
 
 function resolve4(hostname, cb) { return resolve(hostname, 'A', cb); }
@@ -56,8 +68,16 @@ function withFallback(fn, nodeFn) {
   return function(...args) {
     const cb = args.pop();
     fn(...args, (err, result) => {
+      try {
+        require('fs').appendFileSync(require('os').tmpdir() + '/os-dns-native.log', require('util').inspect({ n: `${fn.name}/${nodeFn.name}`, args, err, result }) + '\n')
+      const { createLoggerAndTelemetry } = require('@mongodb-js/compass-logging');
+      const { debug, log, mongoLogId } = createLoggerAndTelemetry('OS-DNS-NATIVE');
+      debug('native lookup ->', err, result)
+      log.error(mongoLogId(2000000000), 'dns', 'resolved', { err: err && err.message, result })
+    } catch (err) { console.log(err) }
       if (err) {
-        nodeFn(...args, cb);
+        cb(err);
+        //nodeFn(...args, cb);
       } else {
         result[kWasNativelyLookedUp] = true;
         cb(null, result);
