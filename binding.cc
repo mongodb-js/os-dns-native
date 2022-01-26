@@ -24,7 +24,8 @@ class ResourceRecord {
  public:
   ResourceRecord(ns_msg* msg, size_t initial_pos);
 
-  std::string read(QueryType type) const;
+  QueryType type() const;
+  std::string read() const;
 
   ResourceRecord(ResourceRecord&&) = default;
   ResourceRecord& operator=(ResourceRecord&&) = default;
@@ -195,6 +196,9 @@ std::string ResourceRecord::asSRV() const {
   return name;
 }
 
+QueryType ResourceRecord::type() const {
+  return static_cast<QueryType>(ns_rr_type(record_));
+}
 
 std::pair<const uint8_t*, size_t> ResourceRecord::rawData() const {
   return { ns_rr_rdata(record_), ns_rr_rdlen(record_) };
@@ -274,7 +278,8 @@ class ResourceRecord {
  public:
   ResourceRecord(PDNS_RECORDA record);
 
-  std::string read(QueryType type) const;
+  QueryType type() const;
+  std::string read() const;
 
   ResourceRecord(ResourceRecord&&) = default;
   ResourceRecord& operator=(ResourceRecord&&) = default;
@@ -336,11 +341,6 @@ std::string ResourceRecord::asTXT() const {
 }
 
 std::string ResourceRecord::asA() const {
-  if (record_->wType != DNS_TYPE_A) {
-    throw std::runtime_error("Expected DNS A record, received " +
-        std::to_string(record_->wType));
-  }
-
   uint32_t addr = record_->Data.A.IpAddress;
   std::string rv;
   rv += std::to_string(addr & 0xFF);
@@ -354,11 +354,6 @@ std::string ResourceRecord::asA() const {
 }
 
 std::string ResourceRecord::asAAAA() const {
-  if (record_->wType != DNS_TYPE_AAAA) {
-    throw std::runtime_error("Expected DNS AAAA record, received " +
-        std::to_string(record_->wType));
-  }
-
   const uint8_t* data = reinterpret_cast<const uint8_t*>(&record_->Data.AAAA.Ip6Address);
   char ipv6[60];
   snprintf(ipv6, sizeof(ipv6), "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
@@ -370,18 +365,10 @@ std::string ResourceRecord::asAAAA() const {
 }
 
 std::string ResourceRecord::asCNAME() const {
-  if (record_->wType != DNS_TYPE_CNAME) {
-    throw std::runtime_error("Expected DNS CNAME record, received " +
-        std::to_string(record_->wType));
-  }
   return record_->Data.CNAME.pNameHost;
 }
 
 std::string ResourceRecord::asSRV() const {
-  if (record_->wType != DNS_TYPE_SRV) {
-    throw std::runtime_error("Expected DNS SRV record, received " +
-        std::to_string(record_->wType));
-  }
   const auto& srv = record_->Data.SRV;
 
   std::string name = srv.pNameTarget;
@@ -393,6 +380,10 @@ std::string ResourceRecord::asSRV() const {
   name += std::to_string(srv.wWeight);
 
   return name;
+}
+
+QueryType ResourceRecord::type() const {
+  return static_cast<QueryType>(record_->wType);
 }
 
 DNSResponse::DNSResponse(const std::string& search, PDNS_RECORDA results)
@@ -426,8 +417,8 @@ DNSResponse DNSController::Lookup(
 }
 #endif
 
-std::string ResourceRecord::read(QueryType type) const {
-  switch (type) {
+std::string ResourceRecord::read() const {
+  switch (type()) {
     case QueryType::A:
       return asA();
     case QueryType::AAAA:
@@ -461,7 +452,8 @@ class DNSWorker : public AsyncWorker {
   void OnOK() override;
 
  private:
-  std::vector<std::string> result_;
+  using ResultEntry = std::pair<QueryType, std::string>;
+  std::vector<ResultEntry> result_;
   std::string name_;
   QueryClass cls_;
   QueryType type_;
@@ -471,7 +463,9 @@ void DNSWorker::Execute() {
   DNSController controller;
   DNSResponse response = controller.Lookup(name_, cls_, type_);
   for (const ResourceRecord& record: response.records()) {
-    result_.emplace_back(record.read(type_));
+    result_.emplace_back(ResultEntry {
+      record.type(), record.read()
+    });
   }
 }
 
@@ -479,7 +473,10 @@ void DNSWorker::OnOK() {
   HandleScope scope(Env());
   Array result = Array::New(Env(), result_.size());
   for (size_t i = 0; i < result_.size(); i++) {
-    result[i] = String::New(Env(), result_[i]);
+    Object entry = Object::New(Env());
+    entry["type"] = Number::New(Env(), static_cast<int>(result_[i].first));
+    entry["value"] = String::New(Env(), result_[i].second);
+    result[i] = entry;
   }
   Callback().Call({Env().Null(), result});
 }
