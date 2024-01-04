@@ -1,6 +1,6 @@
 {
   "name": "os-dns-native",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Perform DNS queries using OS APIs",
   "main": "index.js",
   "scripts": {
