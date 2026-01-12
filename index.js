@@ -53,10 +53,10 @@ function resolve(hostname, rrtype, callback) {
           const { name, port, priority, weight } = res.match(
               /^(?<name>.+):(?<port>\d+),prio=(?<priority>\d+),weight=(?<weight>\d+)$/).groups;
 	  if (providesSrvTypeInResult()) {
-	    return { name, port: +port, priority: +priority, weight: +weight, type: 'SRV' };
-	  } else {
-	    return { name, port: +port, priority: +priority, weight: +weight };
-	  }
+            return { name, port: +port, priority: +priority, weight: +weight, type: 'SRV' };
+          } else {
+            return { name, port: +port, priority: +priority, weight: +weight };
+          }
         }));
     }
   });
