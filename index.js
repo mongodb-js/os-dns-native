@@ -9,8 +9,8 @@ const rrtypes = ['A', 'AAAA', 'CNAME', 'TXT', 'SRV'];
 const rrtypeEnumToString = Object.fromEntries(rrtypes.map(t => [constants[t], t]));
 
 function providesSrvTypeInResult() {
-    const [major] = process.versions.node.split('.').map(Number)
-    return major >= 24;
+  const [major] = process.versions.node.split('.').map(Number)
+  return major >= 24;
 }
 
 function resolve(hostname, rrtype, callback) {
@@ -50,9 +50,8 @@ function resolve(hostname, rrtype, callback) {
         return callback(null, results.map(val => val.split('\0')));
       case 'SRV':
         return callback(null, results.map(res => {
-          const { name, port, priority, weight } = res.match(
-              /^(?<name>.+):(?<port>\d+),prio=(?<priority>\d+),weight=(?<weight>\d+)$/).groups;
-	  if (providesSrvTypeInResult()) {
+          const { name, port, priority, weight } = res.match(/^(?<name>.+):(?<port>\d+),prio=(?<priority>\d+),weight=(?<weight>\d+)$/).groups;
+          if (providesSrvTypeInResult()) {
             return { name, port: +port, priority: +priority, weight: +weight, type: 'SRV' };
           } else {
             return { name, port: +port, priority: +priority, weight: +weight };
