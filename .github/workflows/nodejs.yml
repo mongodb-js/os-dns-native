@@ -9,15 +9,22 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [12.x, 14.x, 16.x]
+        node-version: [20.x, 22.x, 24.x]
     runs-on: ${{matrix.os}}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
       - name: Install Dependencies
         run: npm install
+      - name: Use a faster DNS resolver for failures in Mac.
+        if: runner.os == 'macOS'
+        run: |
+          SERVICE=$(networksetup -listallnetworkservices | tail -n +2 | head -n 1)
+          sudo networksetup -setdnsservers "$SERVICE" 1.1.1.1 1.0.0.1
+          sudo dscacheutil -flushcache
+          sudo killall -HUP mDNSResponder
       - name: Test
         run: npm test
