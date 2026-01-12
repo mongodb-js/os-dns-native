@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-26, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [20.x, 22.x, 24.x]
     runs-on: ${{matrix.os}}
     steps:
@@ -19,5 +19,12 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Install Dependencies
         run: npm install
+      - name: Use a faster DNS resolver for failures in Mac.
+        if: runner.os == 'macOS'
+        run: |
+          SERVICE=$(networksetup -listallnetworkservices | tail -n +2 | head -n 1)
+          sudo networksetup -setdnsservers "$SERVICE" 1.1.1.1 1.0.0.1
+          sudo dscacheutil -flushcache
+          sudo killall -HUP mDNSResponder
       - name: Test
         run: npm test
