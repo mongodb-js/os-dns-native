@@ -2,11 +2,11 @@
 
 let os_dns_native;
 try {
-  os_dns_native = require('../build/Release/os_dns_native.node');
+  os_dns_native = require('./build/Release/os_dns_native.node');
 } catch (err) {
   /* eslint no-useless-catch: 0 */
   try {
-    os_dns_native = require('../build/Debug/os_dns_native.node');
+    os_dns_native = require('./build/Debug/os_dns_native.node');
   } catch (err) {
     throw err;
   }
