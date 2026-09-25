@@ -399,6 +399,9 @@ DNSResponse::DNSResponse(const std::string& search, PDNS_RECORDA results)
   : results_(results, FreeDnsRecordList) {
 
   for (PDNS_RECORDA cur = results; cur != nullptr; cur = cur->pNext) {
+    // Some resolvers attach unrelated records to the additional section; only
+    // the answer section matches the POSIX code path (ns_s_an).
+    if (cur->Flags.S.Section != DnsSectionAnswer) continue;
     records_.emplace_back(cur);
   }
 }
