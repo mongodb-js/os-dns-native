@@ -8,7 +8,9 @@
     "test": "mocha",
     "install": "node-gyp rebuild",
     "prepack": "npm run build",
-    "build": "gen-esm-wrapper . ./.esm-wrapper.mjs"
+    "build": "gen-esm-wrapper . ./.esm-wrapper.mjs",
+    "prepublishOnly": "npm run build",
+    "bump-packages": "bump-monorepo-packages"
   },
   "author": "Anna Henningsen <anna@addaleax.net>",
   "gypfile": true,
@@ -39,6 +41,7 @@
     ".esm-wrapper.mjs"
   ],
   "devDependencies": {
+    "@mongodb-js/monorepo-tools": "^1.6.0",
     "gen-esm-wrapper": "^1.1.1",
     "mocha": "^8.3.1"
   }
