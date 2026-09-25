@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('assert');
 const nodeDns = require('dns');
-const osDns = require('./');
+const osDns = require('../');
 
 describe('lookup', function () {
   this.timeout(60_000);
@@ -20,10 +20,10 @@ describe('lookup', function () {
   for (const useOsDns of [osDns, osDns.withNodeFallback]) {
     context(
       `when ${useOsDns === osDns ? 'not ' : ''}using a Node.js fallback`,
-      () => {
+      function () {
         for (const { type, method, hostname } of queries) {
-          context(`for a ${type} query`, () => {
-            it('looks up with resolve() and matches Node.js', (done) => {
+          context(`for a ${type} query`, function () {
+            it('looks up with resolve() and matches Node.js', function (done) {
               useOsDns.resolve(hostname, type, (err, osResults) => {
                 if (err) {
                   return done(err);
@@ -47,7 +47,7 @@ describe('lookup', function () {
               });
             });
 
-            it('looks up with resolve<X>() and matches Node.js', (done) => {
+            it('looks up with resolve<X>() and matches Node.js', function (done) {
               useOsDns[method](hostname, (err, osResults) => {
                 if (err) {
                   return done(err);
@@ -71,7 +71,7 @@ describe('lookup', function () {
               });
             });
 
-            it('looks up with promises.resolve() and matches Node.js', async () => {
+            it('looks up with promises.resolve() and matches Node.js', async function () {
               const [osResults, nodeResults] = await Promise.all([
                 useOsDns.promises.resolve(hostname, type),
                 nodeDns.promises.resolve(hostname, type),
@@ -82,7 +82,7 @@ describe('lookup', function () {
               assert.deepStrictEqual(new Set(osResults), new Set(nodeResults));
             });
 
-            it('looks up with promises.resolve<X>() and matches Node.js', async () => {
+            it('looks up with promises.resolve<X>() and matches Node.js', async function () {
               const [osResults, nodeResults] = await Promise.all([
                 useOsDns.promises[method](hostname),
                 nodeDns.promises[method](hostname),
@@ -96,7 +96,7 @@ describe('lookup', function () {
         }
 
         for (const { type, method } of queries) {
-          it('provides an error with resolve()', (done) => {
+          it('provides an error with resolve()', function (done) {
             useOsDns.resolve('nonexistent.nx', type, (err) => {
               if (!err) {
                 return done(new Error('missed exception'));
@@ -105,7 +105,7 @@ describe('lookup', function () {
             });
           });
 
-          it('provides an error with resolve<X>()', (done) => {
+          it('provides an error with resolve<X>()', function (done) {
             useOsDns[method]('nonexistent.nx', (err) => {
               if (!err) {
                 return done(new Error('missed exception'));
@@ -114,13 +114,13 @@ describe('lookup', function () {
             });
           });
 
-          it('provides an error with promises.resolve()', async () => {
+          it('provides an error with promises.resolve()', async function () {
             await assert.rejects(() =>
               osDns.promises.resolve('nonexistent.nx', type),
             );
           });
 
-          it('provides an error with promises.resolve<X>()', async () => {
+          it('provides an error with promises.resolve<X>()', async function () {
             await assert.rejects(() =>
               osDns.promises[method]('nonexistent.nx'),
             );
