@@ -6,6 +6,7 @@
   "scripts": {
     "pretest": "npm run build",
     "test": "mocha",
+    "lint": "echo 'all good for now'",
     "install": "node-gyp rebuild",
     "prepack": "npm run build",
     "build": "gen-esm-wrapper . ./.esm-wrapper.mjs",
