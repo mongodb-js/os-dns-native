@@ -1,15 +1,31 @@
 'use strict';
-const { lookup, constants } = require('bindings')('os_dns_native');
+
+let os_dns_native;
+try {
+  os_dns_native = require('../build/Release/os_dns_native.node');
+} catch (err) {
+  /* eslint no-useless-catch: 0 */
+  try {
+    os_dns_native = require('../build/Debug/os_dns_native.node');
+  } catch (err) {
+    throw err;
+  }
+}
+
+const { lookup, constants } = os_dns_native;
+
 const { promisify } = require('util');
 const ipv6normalize = require('ipv6-normalize');
 const nodeDns = require('dns');
 const debug = require('debug')('os-dns-native');
 
 const rrtypes = ['A', 'AAAA', 'CNAME', 'TXT', 'SRV'];
-const rrtypeEnumToString = Object.fromEntries(rrtypes.map(t => [constants[t], t]));
+const rrtypeEnumToString = Object.fromEntries(
+  rrtypes.map((t) => [constants[t], t]),
+);
 
 function providesSrvTypeInResult() {
-  const [major] = process.versions.node.split('.').map(Number)
+  const [major] = process.versions.node.split('.').map(Number);
   return major >= 24;
 }
 
@@ -18,54 +34,98 @@ function resolve(hostname, rrtype, callback) {
     throw new Error(`Unknown rrtype: ${rrtype}`);
   }
 
-  lookup(hostname, constants.INTERNET, constants[rrtype], function(err, rawResults) {
-    if (err) {
-      debug(`failed ${rrtype} DNS resolution`, { hostname, err });
-      return callback(err);
-    }
-    debug(`received ${rrtype} DNS resolution`, { hostname, rawResults });
-
-    const results = [];
-    for (const { type, value } of rawResults) {
-      if (type !== constants[rrtype]) {
-        debug(`skipping mismatched DNS answer: wanted ${rrtype} but got ${rrtypeEnumToString[type]}`, { hostname });
-      } else {
-        results.push(value);
+  lookup(
+    hostname,
+    constants.INTERNET,
+    constants[rrtype],
+    function (err, rawResults) {
+      if (err) {
+        debug(`failed ${rrtype} DNS resolution`, { hostname, err });
+        return callback(err);
       }
-    }
+      debug(`received ${rrtype} DNS resolution`, { hostname, rawResults });
 
-    if (results.length === 0 && rawResults.length !== 0) {
-      // We encounter this situation when we only saw mismatching results.
-      callback(new Error(`DNS server did not provide matching result for ${rrtype}: ${hostname}`));
-      return;
-    }
+      const results = [];
+      for (const { type, value } of rawResults) {
+        if (type !== constants[rrtype]) {
+          debug(
+            `skipping mismatched DNS answer: wanted ${rrtype} but got ${rrtypeEnumToString[type]}`,
+            { hostname },
+          );
+        } else {
+          results.push(value);
+        }
+      }
 
-    switch (rrtype) {
-      case 'A':
-      case 'CNAME':
-        return callback(null, results);
-      case 'AAAA':
-        return callback(null, results.map(addr => ipv6normalize(addr)));
-      case 'TXT':
-        return callback(null, results.map(val => val.split('\0')));
-      case 'SRV':
-        return callback(null, results.map(res => {
-          const { name, port, priority, weight } = res.match(/^(?<name>.+):(?<port>\d+),prio=(?<priority>\d+),weight=(?<weight>\d+)$/).groups;
-          if (providesSrvTypeInResult()) {
-            return { name, port: +port, priority: +priority, weight: +weight, type: 'SRV' };
-          } else {
-            return { name, port: +port, priority: +priority, weight: +weight };
-          }
-        }));
-    }
-  });
+      if (results.length === 0 && rawResults.length !== 0) {
+        // We encounter this situation when we only saw mismatching results.
+        callback(
+          new Error(
+            `DNS server did not provide matching result for ${rrtype}: ${hostname}`,
+          ),
+        );
+        return;
+      }
+
+      switch (rrtype) {
+        case 'A':
+        case 'CNAME':
+          return callback(null, results);
+        case 'AAAA':
+          return callback(
+            null,
+            results.map((addr) => ipv6normalize(addr)),
+          );
+        case 'TXT':
+          return callback(
+            null,
+            results.map((val) => val.split('\0')),
+          );
+        case 'SRV':
+          return callback(
+            null,
+            results.map((res) => {
+              const { name, port, priority, weight } = res.match(
+                /^(?<name>.+):(?<port>\d+),prio=(?<priority>\d+),weight=(?<weight>\d+)$/,
+              ).groups;
+              if (providesSrvTypeInResult()) {
+                return {
+                  name,
+                  port: +port,
+                  priority: +priority,
+                  weight: +weight,
+                  type: 'SRV',
+                };
+              } else {
+                return {
+                  name,
+                  port: +port,
+                  priority: +priority,
+                  weight: +weight,
+                };
+              }
+            }),
+          );
+      }
+    },
+  );
 }
 
-function resolve4(hostname, cb) { return resolve(hostname, 'A', cb); }
-function resolve6(hostname, cb) { return resolve(hostname, 'AAAA', cb); }
-function resolveCname(hostname, cb) { return resolve(hostname, 'CNAME', cb); }
-function resolveSrv(hostname, cb) { return resolve(hostname, 'SRV', cb); }
-function resolveTxt(hostname, cb) { return resolve(hostname, 'TXT', cb); }
+function resolve4(hostname, cb) {
+  return resolve(hostname, 'A', cb);
+}
+function resolve6(hostname, cb) {
+  return resolve(hostname, 'AAAA', cb);
+}
+function resolveCname(hostname, cb) {
+  return resolve(hostname, 'CNAME', cb);
+}
+function resolveSrv(hostname, cb) {
+  return resolve(hostname, 'SRV', cb);
+}
+function resolveTxt(hostname, cb) {
+  return resolve(hostname, 'TXT', cb);
+}
 
 const promises = {
   resolve: promisify(resolve),
@@ -79,7 +139,7 @@ const promises = {
 const kWasNativelyLookedUp = Symbol('os-dns-native.kWasNativelyLookedUp');
 
 function withFallback(fn, nodeFn) {
-  return function(...args) {
+  return function (...args) {
     const cb = args.pop();
     fn(...args, (err, result) => {
       if (err) {
@@ -89,11 +149,15 @@ function withFallback(fn, nodeFn) {
         cb(null, result);
       }
     });
-  }
-};
+  };
+}
 
 function wasNativelyLookedUp(result) {
-  return !!(result && typeof result === 'object' && result[kWasNativelyLookedUp]);
+  return !!(
+    result &&
+    typeof result === 'object' &&
+    result[kWasNativelyLookedUp]
+  );
 }
 
 const withNodeFallback = {
@@ -110,7 +174,7 @@ const withNodeFallback = {
     resolveCname: promisify(withFallback(resolveCname, nodeDns.resolveCname)),
     resolveSrv: promisify(withFallback(resolveSrv, nodeDns.resolveSrv)),
     resolveTxt: promisify(withFallback(resolveTxt, nodeDns.resolveTxt)),
-  }
+  },
 };
 
 module.exports = {
@@ -122,5 +186,5 @@ module.exports = {
   resolveTxt,
   promises,
   withNodeFallback,
-  wasNativelyLookedUp
+  wasNativelyLookedUp,
 };
