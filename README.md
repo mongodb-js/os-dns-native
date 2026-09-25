@@ -13,7 +13,7 @@ fallback to the Node.js methods if the former failed.
 ```js
 import osDns from 'os-dns-native';
 const addresses = await osDns.promises.resolve6('example.org');
-console.log(addresses);  // [ '2606:2800:220:1:248:1893:25c8:1946' ]
+console.log(addresses); // [ '2606:2800:220:1:248:1893:25c8:1946' ]
 
 // Tries the OS API first, falls back to Node.js's own dns.promises.resolve6.
 await osDns.withNodeFallback.promises.resolve6('example.org');

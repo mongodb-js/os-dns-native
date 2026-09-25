@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "rootDir": ".",
+    "allowJs": true,
+    "checkJs": true,
+    "types": ["node", "mocha", "chai"]
+  },
+  "include": ["**/*"],
+  "exclude": ["node_modules", "lib", "coverage", "vendor"]
+}
