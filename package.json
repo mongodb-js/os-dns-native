@@ -29,7 +29,7 @@
   "homepage": "https://github.com/mongodb-js/os-dns-native",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mongodb-js/os-dns-native.git"
+    "url": "git+https://github.com/mongodb-js/os-dns-native.git"
   },
   "bugs": "https://github.com/mongodb-js/os-dns-native/issues",
   "typings": "index.d.ts",
