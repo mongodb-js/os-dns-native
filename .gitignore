@@ -20,6 +20,5 @@ tmp/expansions.yaml
 .evergreen/mongodb
 tmp/
 .esm-wrapper.mjs
-package-lock.json
 build/
 crash.log

@@ -6,9 +6,12 @@
   "scripts": {
     "pretest": "npm run build",
     "test": "mocha",
+    "lint": "echo 'all good for now'",
     "install": "node-gyp rebuild",
     "prepack": "npm run build",
-    "build": "gen-esm-wrapper . ./.esm-wrapper.mjs"
+    "build": "gen-esm-wrapper . ./.esm-wrapper.mjs",
+    "prepublishOnly": "npm run build",
+    "bump-packages": "bump-monorepo-packages"
   },
   "author": "Anna Henningsen <anna@addaleax.net>",
   "gypfile": true,
@@ -26,7 +29,7 @@
   "homepage": "https://github.com/mongodb-js/os-dns-native",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mongodb-js/os-dns-native.git"
+    "url": "git+https://github.com/mongodb-js/os-dns-native.git"
   },
   "bugs": "https://github.com/mongodb-js/os-dns-native/issues",
   "typings": "index.d.ts",
@@ -39,7 +42,8 @@
     ".esm-wrapper.mjs"
   ],
   "devDependencies": {
-    "gen-esm-wrapper": "^1.1.1",
-    "mocha": "^8.3.1"
+    "@mongodb-js/monorepo-tools": "^1.6.0",
+    "gen-esm-wrapper": "^1.1.3",
+    "mocha": "^12.0.2"
   }
 }
