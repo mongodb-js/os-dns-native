@@ -69,4 +69,4 @@ jobs:
         run: |
           version="$(node -p 'require("./package.json").version')"
           git tag -a "v${version}" -m "v${version}" || true
-          git push origin "refs/tags/v${version}"
+          git push origin tag "v${version}"
