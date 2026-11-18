@@ -1,0 +1,53 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      npm-production-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      npm-development-minor-patch:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      npm-production-major:
+        dependency-type: production
+        update-types:
+          - major
+      npm-development-major:
+        dependency-type: development
+        update-types:
+          - major
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+    versioning-strategy: increase
+    open-pull-requests-limit: 15
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    labels:
+      - dependencies
+      - javascript
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      codeql-action:
+        patterns:
+          - github/codeql-action/*
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+      - github-actions
